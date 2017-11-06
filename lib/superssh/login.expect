@@ -1,0 +1,34 @@
+#!/usr/bin/expect
+set host [lindex $argv 0];
+set port [lindex $argv 1];
+set user [lindex $argv 2];
+set pass1 [lindex $argv 3];
+set sutype [lindex $argv 4];
+if { $sutype != "none"} {
+    set pass2 [lindex $argv 5];
+}
+
+trap {
+    set XZ [stty rows   ]
+    set YZ [stty columns]
+    stty rows $XZ columns $YZ < $spawn_out(slave,name)
+} WINCH
+
+eval spawn ssh -p $port -oStrictHostKeyChecking=no -oCheckHostIP=no $user@$host
+set prompt "assword:"
+interact -o -nobuffer -re $prompt return
+send "$pass1\r"
+send "\r"
+set prompt "\\\$ "
+interact -o -nobuffer -re $prompt return
+if { $sutype == "su"} {
+    send "su -\r"
+    set prompt ":"
+    interact -o -nobuffer -re $prompt return
+    send "$pass2\r"
+    set prompt "# "
+    interact -o -nobuffer -re $prompt return
+}
+send "printf '\\e\[?2004l'\r"
+send "clear\r"
+interact

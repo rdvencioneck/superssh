@@ -1,0 +1,123 @@
+#!/bin/bash
+#
+
+source etc/superssh.conf
+
+function show_help {
+  echo "helped a lot"
+}
+
+function get_manager_pwd {
+  echo -n "Password for $DEFAULT_PASSWORD_MANAGER:"
+  read -s passw
+  echo
+}
+
+function get_user_pwd {
+  userpass=$(lib/superssh/get_pw.expect "$REVELATION_DEFAULT_FILE" "$REVELATION_DEFAULT_PASSWD_PATH" "$passw" | tail -1)
+}
+
+function get_root_pwd {
+  rootpass=$(lib/superssh/get_pw.expect "$REVELATION_DEFAULT_FILE" "$REVELATION_ROOT_PASSWD_PATH" "$passw" | tail -1)
+}
+
+while [[ $# -gt 0 ]]
+do
+param="$1"
+
+case $param in
+    -u|--user)
+    C_USER="$2"
+    shift
+    shift
+    ;;
+    -c|--command)
+    COMMAND="$2"
+    shift
+    shift
+    ;;
+    -P|--path)
+    C_PATH="$2"
+    shift
+    shift
+    ;;
+    -p|--port)
+    C_PORT="$2"
+    shift
+    shift
+    ;;
+    -m|--manager)
+    C_PW_MANAGER="$2"
+    shift
+    shift
+    ;;
+    -h|--host)
+    HOST="$2"
+    shift
+    shift
+    ;;
+    -f|--manager-file)
+    C_PW_MANAGER_FILE="$2"
+    shift
+    shift
+    ;;
+    --ask-user-pass)
+    ASK_U_PASS="yes"
+    shift
+    ;;
+    --ask-root-pass)
+    ASK_R_PASS="yes"
+    shift
+    ;;
+    --su)
+    C_SU="yes"
+    shift
+    ;;
+    --sudo-su)
+    C_SUDO_SU="yes"
+    shift
+    ;;
+    --su-path)
+    C_ROOT_PATH="yes"
+    shift
+    ;;
+    -h|--help)
+    show_help
+    exit 0
+    ;;
+    -*)
+    echo "Unknown option: \"$1\""
+    show_help
+    exit 0
+    ;;
+    --*)
+    echo "Unknown option: \"$1\""
+    show_help
+    exit 0
+    ;;
+    *)
+    HOST="$1"
+    shift
+    ;;
+esac
+done
+
+case $DEFAULT_PASSWORD_MANAGER in
+"revelation")
+  get_manager_pwd
+  get_user_pwd
+  aux=$(echo $userpass | sed 's/.$//g')
+  if [[ "$aux" == "Wrong password" ]]; then
+    echo $userpass
+    exit 1
+  fi
+  if [[ $SU == "true" ]]; then
+    echo "get root pass"
+    get_root_pwd
+  fi
+  ;;
+*)
+  echo "Password manager not supported"
+  ;;
+esac
+lib/superssh/login.expect $HOST $DEFAULT_SSH_PORT $DEFAULT_USER $userpass "none"
