@@ -4,21 +4,149 @@
 source etc/superssh.conf
 
 function show_help {
-  echo "helped a lot"
+  echo "future help"
 }
 
 function get_manager_pwd {
-  echo -n "Password for $DEFAULT_PASSWORD_MANAGER:"
+  echo -n "Password for $MGR:"
   read -s passw
   echo
 }
 
-function get_user_pwd {
-  userpass=$(lib/superssh/get_pw.expect "$REVELATION_DEFAULT_FILE" "$REVELATION_DEFAULT_PASSWD_PATH" "$passw" | tail -1)
+function set_revelation_variables {
+  if [ -z "$C_SU" ]; then
+    F_SU=$SU
+  else
+    F_SU=$C_SU
+  fi
+
+  if [ -z "$C_SUDO_SU" ]; then
+    SUDO=$SUDO_SU
+  else
+    SUDO=$C_SUDO_SU
+  fi
+
+  if [ -z "$C_USER" ]; then
+    USER=$DEFAULT_USER
+    REVELATION_PASSWD_PATH=$REVELATION_DEFAULT_PASSWD_PATH
+    REVELATION_ROOT_PATH=$REVELATION_DEFAULT_ROOT_PATH
+  else
+    USER=$C_USER
+    USER_FOUND=$(check_user)
+    FOUND_STATS=$(echo $USER_FOUND | cut -d "," -f 1)
+    USER=$(echo $USER_FOUND | cut -d "," -f 2)
+    REVELATION_PASSWD_PATH=$(echo $USER_FOUND | cut -d "," -f 3)
+    REVELATION_ROOT_PATH=$(echo $USER_FOUND | cut -d "," -f 4)
+
+    # If user found I will not use default conf variables because it would
+    # override the ones defined on table
+    if [[ $FOUND_STATS == "true" ]]; then
+      if [ -n "$C_PATH" ]; then
+        REVELATION_PASSWD_PATH=$C_PATH
+      fi
+      if [ -n "$C_ROOT_PATH" ]; then
+        REVELATION_ROOT_PATH=$C_ROOT_PATH
+      fi
+    else
+      if [ -z "$C_PATH" ]; then
+        REVELATION_PASSWD_PATH=$REVELATION_DEFAULT_PASSWD_PATH
+      else
+        REVELATION_PASSWD_PATH=$C_PATH
+      fi
+      if [ -z "$C_ROOT_PATH" ]; then
+        REVELATION_ROOT_PATH=$REVELATION_DEFAULT_ROOT_PATH
+      else
+        REVELATION_ROOT_PATH=$C_ROOT_PATH
+      fi
+    fi
+  fi
+
+  if [ -z "$C_PW_MANAGER_FILE" ]; then
+    REVELATION_FILE=$REVELATION_DEFAULT_FILE
+  else
+    REVELATION_FILE=$C_PW_MANAGER_FILE
+  fi
 }
 
-function get_root_pwd {
-  rootpass=$(lib/superssh/get_pw.expect "$REVELATION_DEFAULT_FILE" "$REVELATION_ROOT_PASSWD_PATH" "$passw" | tail -1)
+function set_ssh_variables {
+  if [ -z "$C_PORT" ]; then
+    PORT=$DEFAULT_SSH_PORT
+  else
+    PORT=$C_PORT
+  fi
+}
+
+function sep_user_var {
+  end="no"
+  while [ $end != "yes" ]
+  do
+    ini=$i
+    str=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+    if [[ "${str:0:1}" == '"' ]]; then
+      aux=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+      while [ "${aux:${#aux}-1:1}" != '"' ]
+      do
+        i=$(( i + 1 ))
+        aux=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+      done
+      end="yes"
+      str=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f ${ini}-${i})
+      i=$(( i + 1 ))
+    else
+      end="yes"
+      i=$(( i + 1 ))
+    fi
+  done
+  echo $str
+}
+
+function check_user {
+  egrep -vn '(^#|^\s*$|^\s*\t*#)' ~/code/superssh/etc/superssh_users.conf | egrep -q -m 1 ": *$USER\b"
+  if [[ $? == 0 ]]; then
+    user_line=$(egrep -vn '(^#|^\s*$|^\s*\t*#)' ~/code/superssh/etc/superssh_users.conf | egrep -m 1 ": *$USER\b" | cut -d ":" -f1)
+    i=1
+    alias=$(sep_user_var)
+    sum=$(echo "$alias" | grep -o ' ' | wc -l)
+    sum=$(( sum + 1 ))
+    i=$(( i + sum ))
+    username=$(sep_user_var)
+    sum=$(echo "$username" | grep -o ' ' | wc -l)
+    sum=$(( sum + 1 ))
+    i=$(( i + sum ))
+    path=$(sep_user_var)
+    sum=$(echo "$path" | grep -o ' ' | wc -l)
+    sum=$(( sum + 1 ))
+    i=$(( i + sum ))
+    root_path=$(sep_user_var)
+    echo "true,$username,$path,$root_path"
+  else
+    echo "false,$USER"
+  fi
+
+}
+
+function get_revelation_user_pwd {
+  if [[ $ASK_U_PASS ]]; then
+    echo -n "Password for $USER:"
+    read -s userpass
+    echo
+  else
+    userpass=$(lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_PASSWD_PATH" "$passw" | tail -1)
+  fi
+}
+
+function get_revelation_root_pwd {
+  if [[ $ASK_R_PASS ]]; then
+    echo -n "Password for root:"
+    read -s rootpass
+    echo
+  else
+    if [[ $USER == "root" ]]; then
+      rootpass=$userpass
+    else
+      rootpass=$(lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_ROOT_PATH" "$passw" | tail -1)
+    fi
+  fi
 }
 
 while [[ $# -gt 0 ]]
@@ -62,23 +190,24 @@ case $param in
     shift
     ;;
     --ask-user-pass)
-    ASK_U_PASS="yes"
+    ASK_U_PASS=true
     shift
     ;;
     --ask-root-pass)
-    ASK_R_PASS="yes"
+    ASK_R_PASS=true
     shift
     ;;
     --su)
-    C_SU="yes"
+    C_SU=true
     shift
     ;;
     --sudo-su)
-    C_SUDO_SU="yes"
+    C_SUDO_SU=true
     shift
     ;;
     --su-path)
-    C_ROOT_PATH="yes"
+    C_ROOT_PATH="$2"
+    shift
     shift
     ;;
     -h|--help)
@@ -102,22 +231,43 @@ case $param in
 esac
 done
 
-case $DEFAULT_PASSWORD_MANAGER in
+if [ -z "$C_PW_MANAGER" ]; then
+  if [ -z "$DEFAULT_PASSWORD_MANAGER" ]; then
+    echo "Password Manager not defined"
+    exit 2
+  else
+    MGR=$DEFAULT_PASSWORD_MANAGER
+  fi
+else
+  MGR=$C_PW_MANAGER
+fi
+case $MGR in
 "revelation")
+
+  set_revelation_variables
+  set_ssh_variables
   get_manager_pwd
-  get_user_pwd
+  get_revelation_user_pwd
   aux=$(echo $userpass | sed 's/.$//g')
-  if [[ "$aux" == "Wrong password" ]]; then
+  if [[ "$aux" == "Wrong password" || "$aux" == "File not found" ]]; then
     echo $userpass
     exit 1
   fi
-  if [[ $SU == "true" ]]; then
-    echo "get root pass"
-    get_root_pwd
+  if [[ "$aux" == "TypeError: iter must be a GtkTreeIter" ]]; then
+    echo "Error: Cannot find path"
+    exit 1
+  fi
+  if [[ $F_SU ]]; then
+    get_revelation_root_pwd
   fi
   ;;
 *)
-  echo "Password manager not supported"
+  echo "Password manager not supported: $MGR"
+  exit 3
   ;;
 esac
-lib/superssh/login.expect $HOST $DEFAULT_SSH_PORT $DEFAULT_USER $userpass "none"
+if [[ $SUDO ]]; then
+  lib/superssh/login.expect $HOST $PORT $USER $userpass "sudo" "$COMMAND"
+else
+  lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
+fi

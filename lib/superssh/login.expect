@@ -4,8 +4,12 @@ set port [lindex $argv 1];
 set user [lindex $argv 2];
 set pass1 [lindex $argv 3];
 set sutype [lindex $argv 4];
-if { $sutype != "none"} {
+if { $sutype == "su"} {
     set pass2 [lindex $argv 5];
+    set commandexec [lindex $argv 6];
+}
+if { $sutype == "sudo" } {
+    set commandexec [lindex $argv 5];
 }
 
 trap {
@@ -15,7 +19,7 @@ trap {
 } WINCH
 
 eval spawn ssh -p $port -oStrictHostKeyChecking=no -oCheckHostIP=no $user@$host
-set prompt "assword:"
+set prompt "(assword:|${user}:)"
 interact -o -nobuffer -re $prompt return
 send "$pass1\r"
 send "\r"
@@ -29,6 +33,16 @@ if { $sutype == "su"} {
     set prompt "# "
     interact -o -nobuffer -re $prompt return
 }
+if { $sutype == "sudo"} {
+    send "sudo su\r"
+    expect {
+       "*${user}: *" { send "$pass1\r" ; exp_continue }
+       "#" { send "\r" ; set prompt "#" ; interact -o -nobuffer -re $prompt return }
+    }
+}
 send "printf '\\e\[?2004l'\r"
 send "clear\r"
+if {$commandexec != ""} {
+  send "${commandexec}\r"
+}
 interact
