@@ -30,6 +30,11 @@ function set_revelation_variables {
     USER=$DEFAULT_USER
     REVELATION_PASSWD_PATH=$REVELATION_DEFAULT_PASSWD_PATH
     REVELATION_ROOT_PATH=$REVELATION_DEFAULT_ROOT_PATH
+    if [ -z "$C_PATH" ]; then
+      REVELATION_PASSWD_PATH=$REVELATION_DEFAULT_PASSWD_PATH
+    else
+      REVELATION_PASSWD_PATH=$C_PATH
+    fi
   else
     USER=$C_USER
     USER_FOUND=$(check_user)
@@ -269,5 +274,9 @@ esac
 if [[ $SUDO ]]; then
   lib/superssh/login.expect $HOST $PORT $USER $userpass "sudo" "$COMMAND"
 else
-  lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
+  if [[ $F_SU ]]; then
+    lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
+  else
+    lib/superssh/login.expect $HOST $PORT $USER $userpass "none" "$COMMAND"
+  fi
 fi
