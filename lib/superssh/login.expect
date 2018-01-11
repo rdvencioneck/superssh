@@ -11,6 +11,9 @@ if { $sutype == "su"} {
 if { $sutype == "sudo" } {
     set commandexec [lindex $argv 5];
 }
+if { $sutype == "none" } {
+    set commandexec [lindex $argv 5];
+}
 
 trap {
     set XZ [stty rows   ]
@@ -19,11 +22,11 @@ trap {
 } WINCH
 
 eval spawn ssh -p $port -oStrictHostKeyChecking=no -oCheckHostIP=no $user@$host
-set prompt "(assword:|${user}:)"
+set prompt "(assword:|${user}:) "
 interact -o -nobuffer -re $prompt return
 send "$pass1\r"
 send "\r"
-set prompt "\\\$ "
+set prompt "(\\\$|#) "
 interact -o -nobuffer -re $prompt return
 if { $sutype == "su"} {
     send "su -\r"
