@@ -131,7 +131,7 @@ function check_user {
 }
 
 function get_revelation_user_pwd {
-  if [[ $ASK_U_PASS ]]; then
+  if [[ $ASK_U_PASS == "true" ]]; then
     echo -n "Password for $USER:"
     read -s userpass
     echo
@@ -141,7 +141,7 @@ function get_revelation_user_pwd {
 }
 
 function get_revelation_root_pwd {
-  if [[ $ASK_R_PASS ]]; then
+  if [[ $ASK_R_PASS == "true" ]]; then
     echo -n "Password for root:"
     read -s rootpass
     echo
@@ -262,7 +262,7 @@ case $MGR in
     echo "Error: Cannot find path"
     exit 1
   fi
-  if [[ $F_SU ]]; then
+  if [[ $F_SU == "true" ]]; then
     get_revelation_root_pwd
   fi
   ;;
@@ -271,10 +271,10 @@ case $MGR in
   exit 3
   ;;
 esac
-if [[ $SUDO ]]; then
+if [[ $SUDO == "true" ]]; then
   /lib/superssh/login.expect $HOST $PORT $USER $userpass "sudo" "$COMMAND"
 else
-  if [[ $F_SU ]]; then
+  if [[ $F_SU == "true" ]]; then
     /lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
   else
     /lib/superssh/login.expect $HOST $PORT $USER $userpass "none" "$COMMAND"
