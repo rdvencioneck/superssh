@@ -210,6 +210,14 @@ case $param in
     C_SUDO_SU=true
     shift
     ;;
+    --nosu)
+    C_SU=false
+    shift
+    ;;
+    --nosudo-su)
+    C_SUDO_SU=false
+    shift
+    ;;
     --su-path)
     C_ROOT_PATH="$2"
     shift
