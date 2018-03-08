@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-source etc/superssh.conf
+source /etc/superssh/superssh.conf
 
 function show_help {
   echo "future help"
@@ -86,16 +86,16 @@ function sep_user_var {
   while [ $end != "yes" ]
   do
     ini=$i
-    str=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+    str=$(sed -n "${user_line},${user_line}p;${user_line}q" /etc/superssh/superssh_table.conf | column | tr -s " " | cut -d " " -f $i)
     if [[ "${str:0:1}" == '"' ]]; then
-      aux=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+      aux=$(sed -n "${user_line},${user_line}p;${user_line}q" /etc/superssh/superssh_table.conf | column | tr -s " " | cut -d " " -f $i)
       while [ "${aux:${#aux}-1:1}" != '"' ]
       do
         i=$(( i + 1 ))
-        aux=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f $i)
+        aux=$(sed -n "${user_line},${user_line}p;${user_line}q" /etc/superssh/superssh_table.conf | column | tr -s " " | cut -d " " -f $i)
       done
       end="yes"
-      str=$(sed -n "${user_line},${user_line}p;${user_line}q" ~/code/superssh/etc/superssh_users.conf | column | tr -s " " | cut -d " " -f ${ini}-${i})
+      str=$(sed -n "${user_line},${user_line}p;${user_line}q" /etc/superssh/superssh_table.conf | column | tr -s " " | cut -d " " -f ${ini}-${i})
       i=$(( i + 1 ))
     else
       end="yes"
@@ -106,9 +106,9 @@ function sep_user_var {
 }
 
 function check_user {
-  egrep -vn '(^#|^\s*$|^\s*\t*#)' ~/code/superssh/etc/superssh_users.conf | egrep -q -m 1 ": *$USER\b"
+  egrep -vn '(^#|^\s*$|^\s*\t*#)' /etc/superssh/superssh_table.conf | egrep -q -m 1 ": *$USER\b"
   if [[ $? == 0 ]]; then
-    user_line=$(egrep -vn '(^#|^\s*$|^\s*\t*#)' ~/code/superssh/etc/superssh_users.conf | egrep -m 1 ": *$USER\b" | cut -d ":" -f1)
+    user_line=$(egrep -vn '(^#|^\s*$|^\s*\t*#)' /etc/superssh/superssh_table.conf | egrep -m 1 ": *$USER\b" | cut -d ":" -f1)
     i=1
     alias=$(sep_user_var)
     sum=$(echo "$alias" | grep -o ' ' | wc -l)
@@ -136,7 +136,7 @@ function get_revelation_user_pwd {
     read -s userpass
     echo
   else
-    userpass=$(lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_PASSWD_PATH" "$passw" | tail -1)
+    userpass=$(/lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_PASSWD_PATH" "$passw" | tail -1)
   fi
 }
 
@@ -149,7 +149,7 @@ function get_revelation_root_pwd {
     if [[ $USER == "root" ]]; then
       rootpass=$userpass
     else
-      rootpass=$(lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_ROOT_PATH" "$passw" | tail -1)
+      rootpass=$(/lib/superssh/get_pw.expect "$REVELATION_FILE" "$REVELATION_ROOT_PATH" "$passw" | tail -1)
     fi
   fi
 }
@@ -272,11 +272,11 @@ case $MGR in
   ;;
 esac
 if [[ $SUDO ]]; then
-  lib/superssh/login.expect $HOST $PORT $USER $userpass "sudo" "$COMMAND"
+  /lib/superssh/login.expect $HOST $PORT $USER $userpass "sudo" "$COMMAND"
 else
   if [[ $F_SU ]]; then
-    lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
+    /lib/superssh/login.expect $HOST $PORT $USER $userpass "su" $rootpass "$COMMAND"
   else
-    lib/superssh/login.expect $HOST $PORT $USER $userpass "none" "$COMMAND"
+    /lib/superssh/login.expect $HOST $PORT $USER $userpass "none" "$COMMAND"
   fi
 fi
